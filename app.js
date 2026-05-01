@@ -28,15 +28,16 @@ startBtn.onclick = async () => {
         startBtn.style.background = "#e67e22"; 
         update();
     } catch (e) {
-        alert("Mic access denied or error: " + e);
+        alert("Please allow microphone access!");
     }
 };
 
 resetBtn.onclick = () => {
-    location.reload(); // The most reliable way to de-freeze and reset
+    location.reload(); 
 };
 
 function update() {
+    // If we are locked, we stop the loop immediately
     if (!isAnalyzing || isLocked) return;
 
     analyzer.getFloatFrequencyData(data);
@@ -49,30 +50,33 @@ function update() {
             let bin = Math.round(freq * analyzer.fftSize / audioCtx.sampleRate);
             if (data[bin] > maxDb) maxDb = data[bin];
         }
+        // Sensitive threshold
         if (maxDb > -52) currentActive.push(i);
     }
 
+    // INSTANT LOCK: As soon as 1 or more notes are detected
     if (currentActive.length > 0) {
         const noteNames = currentActive.map(i => NOTES[i]);
         document.getElementById('note-display').innerText = noteNames.join(' ');
+        
         const root = currentActive[0];
         const relativePattern = currentActive.map(n => (n - root + 12) % 12).sort((a,b) => a-b).join(',');
-        const chordType = CHORD_MAP[relativePattern] || "Harmony";
+        const chordType = CHORD_MAP[relativePattern] || "Note/Chord";
+        
         document.getElementById('chord-name').innerText = `${NOTES[root]} ${chordType}`;
         
         let score = calculateHarmony(currentActive);
         document.getElementById('meter-fill').style.width = score + '%';
 
-        // Wait 2 seconds of sound, then FREEZE
-        setTimeout(() => {
-            if (isAnalyzing) {
-                isLocked = true;
-                startBtn.innerText = "FROZEN - HIT RESET";
-                startBtn.style.background = "#2c3e50";
-            }
-        }, 2000);
+        // LOCK IMMEDIATELY
+        isLocked = true; 
+        startBtn.innerText = "FROZEN - HIT RESET";
+        startBtn.style.background = "#2c3e50";
     }
-    requestAnimationFrame(update);
+
+    if (!isLocked) {
+        requestAnimationFrame(update);
+    }
 }
 
 function calculateHarmony(idx) {
