@@ -37,7 +37,6 @@ resetBtn.onclick = () => {
 };
 
 function update() {
-    // If we are locked, we stop the loop immediately
     if (!isAnalyzing || isLocked) return;
 
     analyzer.getFloatFrequencyData(data);
@@ -50,33 +49,33 @@ function update() {
             let bin = Math.round(freq * analyzer.fftSize / audioCtx.sampleRate);
             if (data[bin] > maxDb) maxDb = data[bin];
         }
-        // Sensitive threshold
         if (maxDb > -52) currentActive.push(i);
     }
 
-    // INSTANT LOCK: As soon as 1 or more notes are detected
     if (currentActive.length > 0) {
         const noteNames = currentActive.map(i => NOTES[i]);
         document.getElementById('note-display').innerText = noteNames.join(' ');
         
         const root = currentActive[0];
         const relativePattern = currentActive.map(n => (n - root + 12) % 12).sort((a,b) => a-b).join(',');
-        const chordType = CHORD_MAP[relativePattern] || "Note/Chord";
+        const chordType = CHORD_MAP[relativePattern] || "Chord";
         
         document.getElementById('chord-name').innerText = `${NOTES[root]} ${chordType}`;
         
         let score = calculateHarmony(currentActive);
         document.getElementById('meter-fill').style.width = score + '%';
 
-        // LOCK IMMEDIATELY
-        isLocked = true; 
-        startBtn.innerText = "FROZEN - HIT RESET";
-        startBtn.style.background = "#2c3e50";
+        // 0.5 SECOND DELAY (500ms)
+        setTimeout(() => {
+            if (isAnalyzing && !isLocked) {
+                isLocked = true; 
+                startBtn.innerText = "FROZEN - HIT RESET";
+                startBtn.style.background = "#2c3e50";
+            }
+        }, 500); 
     }
 
-    if (!isLocked) {
-        requestAnimationFrame(update);
-    }
+    requestAnimationFrame(update);
 }
 
 function calculateHarmony(idx) {
