@@ -9,35 +9,31 @@ const startBtn = document.getElementById('start-btn');
 const resetBtn = document.getElementById('reset-btn');
 
 startBtn.onclick = async () => {
-    if (!audioCtx) {
-        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    try {
+        if (!audioCtx) {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+        if (audioCtx.state === 'suspended') await audioCtx.resume();
+
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         source = audioCtx.createMediaStreamSource(stream);
         analyzer = audioCtx.createAnalyser();
         analyzer.fftSize = 16384;
         source.connect(analyzer);
         data = new Float32Array(analyzer.frequencyBinCount);
-    }
-    
-    if (audioCtx.state === 'suspended') await audioCtx.resume();
 
-    isAnalyzing = true;
-    isLocked = false;
-    startBtn.innerText = "LISTENING...";
-    startBtn.style.background = "#e67e22"; // Turn orange while listening
-    update();
+        isAnalyzing = true;
+        isLocked = false;
+        startBtn.innerText = "LISTENING...";
+        startBtn.style.background = "#e67e22"; 
+        update();
+    } catch (e) {
+        alert("Mic access denied or error: " + e);
+    }
 };
 
 resetBtn.onclick = () => {
-    // Hard reset: clears everything and stops the loop
-    isAnalyzing = false;
-    isLocked = false;
-    document.getElementById('note-display').innerText = "---";
-    document.getElementById('chord-name').innerText = "Ready...";
-    document.getElementById('meter-fill').style.width = "0%";
-    startBtn.innerText = "START RECORDING";
-    startBtn.style.background = "#3498db"; 
-    startBtn.classList.remove('hidden');
+    location.reload(); // The most reliable way to de-freeze and reset
 };
 
 function update() {
@@ -53,14 +49,12 @@ function update() {
             let bin = Math.round(freq * analyzer.fftSize / audioCtx.sampleRate);
             if (data[bin] > maxDb) maxDb = data[bin];
         }
-        // Sensitive threshold to ensure it picks up the sound
-        if (maxDb > -55) currentActive.push(i);
+        if (maxDb > -52) currentActive.push(i);
     }
 
     if (currentActive.length > 0) {
         const noteNames = currentActive.map(i => NOTES[i]);
         document.getElementById('note-display').innerText = noteNames.join(' ');
-        
         const root = currentActive[0];
         const relativePattern = currentActive.map(n => (n - root + 12) % 12).sort((a,b) => a-b).join(',');
         const chordType = CHORD_MAP[relativePattern] || "Harmony";
@@ -69,17 +63,15 @@ function update() {
         let score = calculateHarmony(currentActive);
         document.getElementById('meter-fill').style.width = score + '%';
 
-        // THE 2-SECOND DELAY LOGIC:
-        // Once it hears a note, wait 2 seconds, then lock the screen.
+        // Wait 2 seconds of sound, then FREEZE
         setTimeout(() => {
             if (isAnalyzing) {
                 isLocked = true;
-                startBtn.innerText = "FROZEN - PRESS RESET";
+                startBtn.innerText = "FROZEN - HIT RESET";
                 startBtn.style.background = "#2c3e50";
             }
-        }, 2000); 
+        }, 2000);
     }
-
     requestAnimationFrame(update);
 }
 
