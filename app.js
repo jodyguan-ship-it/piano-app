@@ -59,7 +59,7 @@ function update() {
             let bin = Math.round(freq * analyzer.fftSize / audioCtx.sampleRate);
             if (data[bin] > maxDb) maxDb = data[bin];
         }
-        if (maxDb > -58) currentActive.push(i);
+        if (maxDb > -45) currentActive.push(i);
     }
 
     if (currentActive.length > 0) {
