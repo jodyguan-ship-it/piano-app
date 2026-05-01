@@ -3,29 +3,40 @@ const CHORD_MAP = {"0,4,7": "Major", "0,3,7": "Minor", "0,4,7,10": "7th", "0,4,7
 
 let audioCtx, analyzer, data, source;
 let isAnalyzing = false;
-let isLocked = false; // New: This prevents the notes from changing
+let isLocked = false;
 
 const startBtn = document.getElementById('start-btn');
 const stopBtn = document.getElementById('stop-btn');
 const resetBtn = document.getElementById('reset-btn');
 
 startBtn.onclick = async () => {
-    if (!audioCtx) {
-        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    try {
+        if (!audioCtx) {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+        // Always resume the context in case the browser suspended it
+        if (audioCtx.state === 'suspended') {
+            await audioCtx.resume();
+        }
+        
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         source = audioCtx.createMediaStreamSource(stream);
         analyzer = audioCtx.createAnalyser();
         analyzer.fftSize = 16384;
         source.connect(analyzer);
         data = new Float32Array(analyzer.frequencyBinCount);
+        
+        isAnalyzing = true;
+        isLocked = false;
+        startBtn.classList.add('hidden');
+        stopBtn.classList.remove('hidden');
+        resetBtn.classList.remove('hidden');
+        document.getElementById('chord-name').innerText = "Listening...";
+        update();
+    } catch (err) {
+        console.error("Mic error:", err);
+        alert("Please allow microphone access!");
     }
-    
-    isAnalyzing = true;
-    isLocked = false; // Unlock when we start
-    startBtn.classList.add('hidden');
-    stopBtn.classList.remove('hidden');
-    resetBtn.classList.remove('hidden');
-    update();
 };
 
 stopBtn.onclick = () => {
@@ -33,18 +44,10 @@ stopBtn.onclick = () => {
 };
 
 resetBtn.onclick = () => {
-    isAnalyzing = false;
-    isLocked = false; // Unlock so we can play a new chord
-    document.getElementById('note-display').innerText = "---";
-    document.getElementById('chord-name').innerText = "Ready...";
-    document.getElementById('meter-fill').style.width = "0%";
-    document.getElementById('harmony-text').innerText = "Harmony Score: 0%";
-    
-    startBtn.innerText = "START RECORDING";
+    location.reload(); // This is a "Power Reset" to clear everything
 };
 
 function update() {
-    // If the switch is off OR if we already locked a chord, stop updating!
     if (!isAnalyzing || isLocked) return;
 
     analyzer.getFloatFrequencyData(data);
@@ -57,28 +60,27 @@ function update() {
             let bin = Math.round(freq * analyzer.fftSize / audioCtx.sampleRate);
             if (data[bin] > maxDb) maxDb = data[bin];
         }
-        // Higher threshold (-40) to ensure we only lock on "Real" notes
-        if (maxDb > -40) currentActive.push(i);
+        // CHANGED BACK TO -50 (More sensitive)
+        if (maxDb > -50) currentActive.push(i);
     }
 
-    if (currentActive.length >= 3) { // Wait until at least 3 notes (a chord) are heard
+    if (currentActive.length >= 2) { 
         const noteNames = currentActive.map(i => NOTES[i]);
         document.getElementById('note-display').innerText = noteNames.join(' ');
         
         const root = currentActive[0];
         const relativePattern = currentActive.map(n => (n - root + 12) % 12).sort((a,b) => a-b).join(',');
-        const chordType = CHORD_MAP[relativePattern] || "Chord";
+        const chordType = CHORD_MAP[relativePattern] || "Harmony";
         
         document.getElementById('chord-name').innerText = `${NOTES[root]} ${chordType}`;
         
         let score = calculateHarmony(currentActive);
-        document.getElementById('harmony-text').innerText = `Locked Harmony: ${score}%`;
+        document.getElementById('harmony-text').innerText = `Locked! Score: ${score}%`;
         document.getElementById('meter-fill').style.width = score + '%';
 
-        // LOCK IT! This stops the "update" loop from changing the text
         isLocked = true; 
         startBtn.classList.remove('hidden');
-        startBtn.innerText = "TRY ANOTHER CHORD";
+        startBtn.innerText = "NEXT CHORD";
     }
 
     requestAnimationFrame(update);
