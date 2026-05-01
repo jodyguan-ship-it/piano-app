@@ -3,6 +3,7 @@ const CHORD_MAP = {"0,4,7": "Major", "0,3,7": "Minor", "0,4,7,10": "7th", "0,4,7
 
 let audioCtx, analyzer, data, source;
 let isAnalyzing = false;
+let isLocked = false; // New: This prevents the notes from changing
 
 const startBtn = document.getElementById('start-btn');
 const stopBtn = document.getElementById('stop-btn');
@@ -20,6 +21,7 @@ startBtn.onclick = async () => {
     }
     
     isAnalyzing = true;
+    isLocked = false; // Unlock when we start
     startBtn.classList.add('hidden');
     stopBtn.classList.remove('hidden');
     resetBtn.classList.remove('hidden');
@@ -28,26 +30,22 @@ startBtn.onclick = async () => {
 
 stopBtn.onclick = () => {
     isAnalyzing = false;
-    stopBtn.classList.add('hidden');
-    startBtn.classList.remove('hidden');
-    startBtn.innerText = "RESUME RECORDING";
 };
 
 resetBtn.onclick = () => {
     isAnalyzing = false;
+    isLocked = false; // Unlock so we can play a new chord
     document.getElementById('note-display').innerText = "---";
     document.getElementById('chord-name').innerText = "Ready...";
     document.getElementById('meter-fill').style.width = "0%";
     document.getElementById('harmony-text').innerText = "Harmony Score: 0%";
     
-    stopBtn.classList.add('hidden');
-    resetBtn.classList.add('hidden');
-    startBtn.classList.remove('hidden');
     startBtn.innerText = "START RECORDING";
 };
 
 function update() {
-    if (!isAnalyzing) return;
+    // If the switch is off OR if we already locked a chord, stop updating!
+    if (!isAnalyzing || isLocked) return;
 
     analyzer.getFloatFrequencyData(data);
     let currentActive = [];
@@ -59,20 +57,28 @@ function update() {
             let bin = Math.round(freq * analyzer.fftSize / audioCtx.sampleRate);
             if (data[bin] > maxDb) maxDb = data[bin];
         }
-        if (maxDb > -45) currentActive.push(i);
+        // Higher threshold (-40) to ensure we only lock on "Real" notes
+        if (maxDb > -40) currentActive.push(i);
     }
 
-    if (currentActive.length > 0) {
+    if (currentActive.length >= 3) { // Wait until at least 3 notes (a chord) are heard
         const noteNames = currentActive.map(i => NOTES[i]);
         document.getElementById('note-display').innerText = noteNames.join(' ');
+        
         const root = currentActive[0];
         const relativePattern = currentActive.map(n => (n - root + 12) % 12).sort((a,b) => a-b).join(',');
-        const chordType = CHORD_MAP[relativePattern] || "Harmony";
+        const chordType = CHORD_MAP[relativePattern] || "Chord";
+        
         document.getElementById('chord-name').innerText = `${NOTES[root]} ${chordType}`;
         
         let score = calculateHarmony(currentActive);
-        document.getElementById('harmony-text').innerText = `Harmony Score: ${score}%`;
+        document.getElementById('harmony-text').innerText = `Locked Harmony: ${score}%`;
         document.getElementById('meter-fill').style.width = score + '%';
+
+        // LOCK IT! This stops the "update" loop from changing the text
+        isLocked = true; 
+        startBtn.classList.remove('hidden');
+        startBtn.innerText = "TRY ANOTHER CHORD";
     }
 
     requestAnimationFrame(update);
