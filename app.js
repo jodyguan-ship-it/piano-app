@@ -18,7 +18,7 @@ startBtn.onclick = async () => {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         source = audioCtx.createMediaStreamSource(stream);
         analyzer = audioCtx.createAnalyser();
-        analyzer.fftSize = 16384; // High resolution
+        analyzer.fftSize = 16384;
         source.connect(analyzer);
         data = new Float32Array(analyzer.frequencyBinCount);
 
@@ -46,21 +46,15 @@ function update() {
         let maxDb = -Infinity;
         for (let oct = 2; oct <= 5; oct++) {
             let freq = 440 * Math.pow(2, (i - 9 + (oct - 4) * 12) / 12);
-            let centerBin = Math.round(freq * analyzer.fftSize / audioCtx.sampleRate);
-            
-            // Check a small range (3 bins) instead of just one spot
-            for (let b = centerBin - 1; b <= centerBin + 1; b++) {
-                if (data[b] > maxDb) maxDb = data[b];
-            }
+            let bin = Math.round(freq * analyzer.fftSize / audioCtx.sampleRate);
+            if (data[bin] > maxDb) maxDb = data[bin];
         }
-        // INCREASED SENSITIVITY to -60 to catch non-C notes
-        if (maxDb > -60) currentActive.push(i);
+        // SETTING TO -50 (Reliable threshold)
+        if (maxDb > -50) currentActive.push(i);
     }
 
-    if (currentActive.length > 0 && !isLocked) {
-        // Remove duplicate notes if they appear in different octaves
-        currentActive = [...new Set(currentActive)].sort((a, b) => a - b);
-        
+    // NEW GUARD: Only process if at least 2 notes are detected
+    if (currentActive.length >= 2 && !isLocked) {
         const noteNames = currentActive.map(i => NOTES[i]);
         document.getElementById('note-display').innerText = noteNames.join(' ');
         
@@ -74,10 +68,10 @@ function update() {
         document.getElementById('meter-fill').style.width = score + '%';
         document.getElementById('harmony-text').innerText = `Harmony Score: ${score}%`;
 
-        // SCREEN LOCK: Increased to 0.4s to let non-C chords stabilize
+        // SCREEN LOCK: 0.2s
         setTimeout(() => {
             isLocked = true; 
-        }, 300); 
+        }, 200); 
 
         // BUTTON LOCK: 2.0s
         setTimeout(() => {
