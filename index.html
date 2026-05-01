@@ -4,14 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Harmony Pro</title>
-    <link rel="manifest" href="manifest.json">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <style>
         :root {
             --bg: #0a0a0c;
             --card: rgba(255, 255, 255, 0.06);
-            --accent: #3498db; /* Change this hex code to your favorite color! */
+            --accent: #3498db;
             --text-secondary: #888;
         }
         * { user-select: none; -webkit-tap-highlight-color: transparent; box-sizing: border-box; }
@@ -30,58 +27,35 @@
             width: 90%;
             max-width: 400px;
             text-align: center;
-            box-shadow: 0 25px 50px rgba(0,0,0,0.5);
         }
-        #chord-name { 
-            font-size: 1.2rem; 
-            color: var(--accent); 
-            font-weight: 600; 
-            letter-spacing: 1px;
-            text-transform: uppercase;
-            margin-bottom: 10px;
-            height: 1.5rem;
-        }
-        #note-display { 
-            font-size: 4.5rem; 
-            color: white; 
-            font-weight: 900; 
-            margin: 10px 0; 
-            text-shadow: 0 0 20px rgba(255,255,255,0.2);
-        }
+        #chord-name { font-size: 1.2rem; color: var(--accent); font-weight: 600; margin-bottom: 10px; height: 1.5rem; }
+        #note-display { font-size: 4.5rem; color: white; font-weight: 900; margin: 10px 0; }
         #harmony-text { font-size: 1rem; color: var(--text-secondary); margin-top: 20px; }
-        #meter-container { 
-            width: 100%; background: rgba(255,255,255,0.1); height: 8px; 
-            border-radius: 10px; margin-top: 15px; overflow: hidden;
+        #meter-container { width: 100%; background: rgba(255,255,255,0.1); height: 8px; border-radius: 10px; margin-top: 15px; overflow: hidden; }
+        #meter-fill { width: 0%; height: 100%; background: var(--accent); transition: width 0.3s ease; }
+        .controls { margin-top: 35px; display: flex; gap: 10px; justify-content: center; }
+        button {
+            padding: 16px 24px; border-radius: 18px; font-weight: bold;
+            cursor: pointer; transition: all 0.2s; border: none;
         }
-        #meter-fill { 
-            width: 0%; height: 100%; background: var(--accent); 
-            box-shadow: 0 0 15px var(--accent); transition: width 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); 
-        }
-        .controls { margin-top: 35px; }
-        #start-btn, #reset-btn {
-            background: var(--accent); color: white; border: none;
-            padding: 16px 32px; border-radius: 18px; font-weight: bold;
-            font-size: 1rem; cursor: pointer; transition: all 0.2s;
-            box-shadow: 0 10px 20px rgba(0,0,0,0.2);
-        }
+        #start-btn { background: var(--accent); color: white; width: 100%; }
+        #stop-btn { background: #e74c3c; color: white; }
         #reset-btn { background: rgba(255,255,255,0.1); color: white; border: 1px solid rgba(255,255,255,0.2); }
-        #start-btn:active, #reset-btn:active { transform: scale(0.95); }
         .hidden { display: none !important; }
     </style>
 </head>
 <body>
-    <div id="overlay">
-        <button id="start-btn">INITIALIZE ANALYZER</button>
-    </div>
-    <div id="main-ui" class="container hidden">
-        <div id="chord-name">Detecting...</div>
+    <div id="main-ui" class="container">
+        <div id="chord-name">Ready...</div>
         <div id="note-display">---</div>
         
         <div id="meter-container"><div id="meter-fill"></div></div>
         <div id="harmony-text">Harmony Score: 0%</div>
 
         <div class="controls">
-            <button id="reset-btn">TRY AGAIN</button>
+            <button id="start-btn">START RECORDING</button>
+            <button id="stop-btn" class="hidden">STOP</button>
+            <button id="reset-btn" class="hidden">RESET</button>
         </div>
     </div>
     <script src="app.js"></script>
