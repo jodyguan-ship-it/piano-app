@@ -6,45 +6,38 @@ let isAnalyzing = false;
 let isLocked = false;
 
 const startBtn = document.getElementById('start-btn');
-const stopBtn = document.getElementById('stop-btn');
 const resetBtn = document.getElementById('reset-btn');
 
 startBtn.onclick = async () => {
-    try {
-        if (!audioCtx) {
-            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        }
-        // Always resume the context in case the browser suspended it
-        if (audioCtx.state === 'suspended') {
-            await audioCtx.resume();
-        }
-        
+    if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         source = audioCtx.createMediaStreamSource(stream);
         analyzer = audioCtx.createAnalyser();
         analyzer.fftSize = 16384;
         source.connect(analyzer);
         data = new Float32Array(analyzer.frequencyBinCount);
-        
-        isAnalyzing = true;
-        isLocked = false;
-        startBtn.classList.add('hidden');
-        stopBtn.classList.remove('hidden');
-        resetBtn.classList.remove('hidden');
-        document.getElementById('chord-name').innerText = "Listening...";
-        update();
-    } catch (err) {
-        console.error("Mic error:", err);
-        alert("Please allow microphone access!");
     }
-};
+    
+    if (audioCtx.state === 'suspended') await audioCtx.resume();
 
-stopBtn.onclick = () => {
-    isAnalyzing = false;
+    isAnalyzing = true;
+    isLocked = false;
+    startBtn.innerText = "LISTENING...";
+    startBtn.style.background = "#e67e22"; // Turn orange while listening
+    update();
 };
 
 resetBtn.onclick = () => {
-    location.reload(); // This is a "Power Reset" to clear everything
+    // Hard reset: clears everything and stops the loop
+    isAnalyzing = false;
+    isLocked = false;
+    document.getElementById('note-display').innerText = "---";
+    document.getElementById('chord-name').innerText = "Ready...";
+    document.getElementById('meter-fill').style.width = "0%";
+    startBtn.innerText = "START RECORDING";
+    startBtn.style.background = "#3498db"; 
+    startBtn.classList.remove('hidden');
 };
 
 function update() {
@@ -60,27 +53,31 @@ function update() {
             let bin = Math.round(freq * analyzer.fftSize / audioCtx.sampleRate);
             if (data[bin] > maxDb) maxDb = data[bin];
         }
-        // CHANGED BACK TO -50 (More sensitive)
-        if (maxDb > -50) currentActive.push(i);
+        // Sensitive threshold to ensure it picks up the sound
+        if (maxDb > -55) currentActive.push(i);
     }
 
-    if (currentActive.length >= 2) { 
+    if (currentActive.length > 0) {
         const noteNames = currentActive.map(i => NOTES[i]);
         document.getElementById('note-display').innerText = noteNames.join(' ');
         
         const root = currentActive[0];
         const relativePattern = currentActive.map(n => (n - root + 12) % 12).sort((a,b) => a-b).join(',');
         const chordType = CHORD_MAP[relativePattern] || "Harmony";
-        
         document.getElementById('chord-name').innerText = `${NOTES[root]} ${chordType}`;
         
         let score = calculateHarmony(currentActive);
-        document.getElementById('harmony-text').innerText = `Locked! Score: ${score}%`;
         document.getElementById('meter-fill').style.width = score + '%';
 
-        isLocked = true; 
-        startBtn.classList.remove('hidden');
-        startBtn.innerText = "NEXT CHORD";
+        // THE 2-SECOND DELAY LOGIC:
+        // Once it hears a note, wait 2 seconds, then lock the screen.
+        setTimeout(() => {
+            if (isAnalyzing) {
+                isLocked = true;
+                startBtn.innerText = "FROZEN - PRESS RESET";
+                startBtn.style.background = "#2c3e50";
+            }
+        }, 2000); 
     }
 
     requestAnimationFrame(update);
