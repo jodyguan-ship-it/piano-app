@@ -86,7 +86,7 @@ function update() {
                 startBtn.innerText = "CAPTURED";
                 startBtn.style.background = "#27ae60"; // Turn green to show success
             }
-        }, 200); 
+        }, 500); 
     }
 
     // Keep the loop running so it can detect the next start
