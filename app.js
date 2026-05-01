@@ -18,7 +18,7 @@ startBtn.onclick = async () => {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         source = audioCtx.createMediaStreamSource(stream);
         analyzer = audioCtx.createAnalyser();
-        analyzer.fftSize = 16384;
+        analyzer.fftSize = 16384; // High resolution
         source.connect(analyzer);
         data = new Float32Array(analyzer.frequencyBinCount);
 
@@ -46,14 +46,21 @@ function update() {
         let maxDb = -Infinity;
         for (let oct = 2; oct <= 5; oct++) {
             let freq = 440 * Math.pow(2, (i - 9 + (oct - 4) * 12) / 12);
-            let bin = Math.round(freq * analyzer.fftSize / audioCtx.sampleRate);
-            if (data[bin] > maxDb) maxDb = data[bin];
+            let centerBin = Math.round(freq * analyzer.fftSize / audioCtx.sampleRate);
+            
+            // Check a small range (3 bins) instead of just one spot
+            for (let b = centerBin - 1; b <= centerBin + 1; b++) {
+                if (data[b] > maxDb) maxDb = data[b];
+            }
         }
-        if (maxDb > -52) currentActive.push(i);
+        // INCREASED SENSITIVITY to -60 to catch non-C notes
+        if (maxDb > -60) currentActive.push(i);
     }
 
-    // Only update the musical data if the SCREEN isn't locked
     if (currentActive.length > 0 && !isLocked) {
+        // Remove duplicate notes if they appear in different octaves
+        currentActive = [...new Set(currentActive)].sort((a, b) => a - b);
+        
         const noteNames = currentActive.map(i => NOTES[i]);
         document.getElementById('note-display').innerText = noteNames.join(' ');
         
@@ -67,12 +74,12 @@ function update() {
         document.getElementById('meter-fill').style.width = score + '%';
         document.getElementById('harmony-text').innerText = `Harmony Score: ${score}%`;
 
-        // TIMER 1: Freeze the SCREEN (0.2s)
+        // SCREEN LOCK: Increased to 0.4s to let non-C chords stabilize
         setTimeout(() => {
             isLocked = true; 
-        }, 200); 
+        }, 400); 
 
-        // TIMER 2: Freeze the BUTTON (2.0s)
+        // BUTTON LOCK: 2.0s
         setTimeout(() => {
             if (isAnalyzing) {
                 startBtn.innerText = "CAPTURED";
