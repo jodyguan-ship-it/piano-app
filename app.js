@@ -15,10 +15,21 @@ startBtn.onclick = async () => {
         }
         if (audioCtx.state === 'suspended') await audioCtx.resume();
 
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        const stream = await navigator.mediaDevices.getUserMedia({ 
+            audio: { 
+                echoCancellation: false, 
+                noiseSuppression: false, 
+                autoGainControl: false 
+            } 
+        });
+        
         source = audioCtx.createMediaStreamSource(stream);
         analyzer = audioCtx.createAnalyser();
-        analyzer.fftSize = 16384;
+        
+        // MAX RESOLUTION: This helps separate the middle note from the outer notes
+        analyzer.fftSize = 32768; 
+        analyzer.smoothingTimeConstant = 0; 
+        
         source.connect(analyzer);
         data = new Float32Array(analyzer.frequencyBinCount);
 
@@ -42,18 +53,26 @@ function update() {
     analyzer.getFloatFrequencyData(data);
     let currentActive = [];
 
+    // Scan for notes with a much narrower, sharper focus
     for (let i = 0; i < 12; i++) {
-        let maxDb = -Infinity;
+        let noteFound = false;
         for (let oct = 2; oct <= 5; oct++) {
             let freq = 440 * Math.pow(2, (i - 9 + (oct - 4) * 12) / 12);
             let bin = Math.round(freq * analyzer.fftSize / audioCtx.sampleRate);
-            if (data[bin] > maxDb) maxDb = data[bin];
+            
+            // Check only the exact bin and its immediate neighbors for high precision
+            let val = data[bin];
+            
+            // If the note is loud enough and is a "peak" compared to its neighbors
+            if (val > -55 && val > data[bin-1] && val > data[bin+1]) {
+                noteFound = true;
+                break;
+            }
         }
-        // SETTING TO -50 (Reliable threshold)
-        if (maxDb > -50) currentActive.push(i);
+        if (noteFound) currentActive.push(i);
     }
 
-    // NEW GUARD: Only process if at least 2 notes are detected
+    // Capture the chord once we hear at least 2 clear notes
     if (currentActive.length >= 2 && !isLocked) {
         const noteNames = currentActive.map(i => NOTES[i]);
         document.getElementById('note-display').innerText = noteNames.join(' ');
@@ -68,12 +87,10 @@ function update() {
         document.getElementById('meter-fill').style.width = score + '%';
         document.getElementById('harmony-text').innerText = `Harmony Score: ${score}%`;
 
-        // SCREEN LOCK: 0.2s
-        setTimeout(() => {
-            isLocked = true; 
-        }, 200); 
+        // Screen freeze after 0.2s
+        setTimeout(() => { isLocked = true; }, 200); 
 
-        // BUTTON LOCK: 2.0s
+        // Button freeze after 2s
         setTimeout(() => {
             if (isAnalyzing) {
                 startBtn.innerText = "CAPTURED";
