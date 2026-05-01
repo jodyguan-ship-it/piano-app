@@ -72,7 +72,7 @@ function update() {
                 startBtn.innerText = "FROZEN - HIT RESET";
                 startBtn.style.background = "#2c3e50";
             }
-        }, 500); 
+        }, 200); 
     }
 
     requestAnimationFrame(update);
