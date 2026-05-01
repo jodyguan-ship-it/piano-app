@@ -77,7 +77,7 @@ function update() {
         // SCREEN LOCK: Increased to 0.4s to let non-C chords stabilize
         setTimeout(() => {
             isLocked = true; 
-        }, 400); 
+        }, 300); 
 
         // BUTTON LOCK: 2.0s
         setTimeout(() => {
