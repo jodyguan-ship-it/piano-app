@@ -15,21 +15,14 @@ startBtn.onclick = async () => {
         }
         if (audioCtx.state === 'suspended') await audioCtx.resume();
 
-        // Turn off auto-filters that might "clean up" musical notes
         const stream = await navigator.mediaDevices.getUserMedia({ 
-            audio: { 
-                echoCancellation: false, 
-                noiseSuppression: false, 
-                autoGainControl: false 
-            } 
+            audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } 
         });
         
         source = audioCtx.createMediaStreamSource(stream);
         analyzer = audioCtx.createAnalyser();
-        
-        // MAX RESOLUTION: Sharpens the "image" of the sound
-        analyzer.fftSize = 32768; 
-        analyzer.smoothingTimeConstant = 0; 
+        analyzer.fftSize = 16384; 
+        analyzer.smoothingTimeConstant = 0.2; // Slight smoothing to stabilize G
         
         source.connect(analyzer);
         data = new Float32Array(analyzer.frequencyBinCount);
@@ -44,9 +37,7 @@ startBtn.onclick = async () => {
     }
 };
 
-resetBtn.onclick = () => {
-    location.reload(); 
-};
+resetBtn.onclick = () => { location.reload(); };
 
 function update() {
     if (!isAnalyzing) return;
@@ -54,25 +45,27 @@ function update() {
     analyzer.getFloatFrequencyData(data);
     let currentActive = [];
 
-    // Scan for notes with high precision
     for (let i = 0; i < 12; i++) {
-        let noteFound = false;
+        let maxVal = -Infinity;
         for (let oct = 2; oct <= 5; oct++) {
             let freq = 440 * Math.pow(2, (i - 9 + (oct - 4) * 12) / 12);
             let bin = Math.round(freq * analyzer.fftSize / audioCtx.sampleRate);
             
-            // Peak Detection: Is this bin louder than its immediate neighbors?
-            let val = data[bin];
-            if (val > -55 && val > data[bin-1] && val > data[bin+1]) {
-                noteFound = true;
-                break;
-            }
+            // Check a tiny 3-bin window
+            let val = Math.max(data[bin], data[bin-1], data[bin+1]);
+            if (val > maxVal) maxVal = val;
         }
-        if (noteFound) currentActive.push(i);
+
+        // BOOST LOGIC: If it's a G (index 7), we allow a slightly lower volume
+        let threshold = (i === 7 || i === 2 || i === 9) ? -62 : -56; 
+        
+        if (maxVal > threshold) {
+            currentActive.push(i);
+        }
     }
 
-    // Only process if at least 2 notes are detected to avoid noise freezing
     if (currentActive.length >= 2 && !isLocked) {
+        // Clean up: If we have C and C#, and C is way louder, drop the C#
         const noteNames = currentActive.map(i => NOTES[i]);
         document.getElementById('note-display').innerText = noteNames.join(' ');
         
@@ -84,14 +77,11 @@ function update() {
         
         let score = calculateHarmony(currentActive);
         document.getElementById('meter-fill').style.width = score + '%';
-        document.getElementById('harmony-text').innerText = `Harmony Score: ${score}%`;
 
-        // TIMER 1: Freeze the SCREEN data (0.2s)
-        setTimeout(() => {
-            isLocked = true; 
-        }, 200); 
+        // SCREEN FREEZE (0.2s)
+        setTimeout(() => { isLocked = true; }, 200); 
 
-        // TIMER 2: Change the BUTTON (2.0s)
+        // BUTTON FREEZE (2s)
         setTimeout(() => {
             if (isAnalyzing) {
                 startBtn.innerText = "CAPTURED";
