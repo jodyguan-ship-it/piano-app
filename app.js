@@ -70,14 +70,15 @@ function update() {
         
         document.getElementById('chord-name').innerText = `${NOTES[root]} ${chordType}`;
         
-        // 1. UPDATE THE METER BAR
         let score = calculateHarmony(currentActive);
+        
+        // Update Bar
         document.getElementById('meter-fill').style.width = score + '%';
 
-        // 2. UPDATE THE TEXT WORDS (THE NEW CHANGE)
+        // Update Text (Now using innerHTML for a stronger "nudge")
         const harmonyText = document.getElementById('harmony-text');
         if (harmonyText) {
-            harmonyText.innerText = 'Harmony Score: ' + score + '%';
+            harmonyText.innerHTML = 'Harmony Score: ' + score + '%';
         }
 
         setTimeout(() => { isLocked = true; }, 200); 
@@ -104,17 +105,15 @@ function calculateHarmony(idx) {
             let diff = Math.abs(idx[i] - idx[j]) % 12;
             let pairScore = 50; 
 
-            if (diff === 7 || diff === 5 || diff === 4 || diff === 9) {
+            // MOVED 3rds and 4ths TO 100 POINTS
+            if (diff === 7 || diff === 5 || diff === 4 || diff === 3 || diff === 9 || diff === 8) {
                 pairScore = 100; 
             } 
-            else if (diff === 3 || diff === 8) {
-                pairScore = 85;
-            }
             else if (diff === 1 || diff === 11 || diff === 6) {
-                pairScore = 10;
+                pairScore = 0; // Much harsher for actual clashes
             }
             else if (diff === 2 || diff === 10) {
-                pairScore = 40;
+                pairScore = 30;
             }
 
             totalScore += pairScore;
