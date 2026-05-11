@@ -50,15 +50,11 @@ function update() {
         for (let oct = 2; oct <= 5; oct++) {
             let freq = 440 * Math.pow(2, (i - 9 + (oct - 4) * 12) / 12);
             let bin = Math.round(freq * analyzer.fftSize / audioCtx.sampleRate);
-            
-            // Checks 5 bins to catch the note even if it's slightly off
             let val = Math.max(data[bin], data[bin-1], data[bin+1], data[bin-2], data[bin+2]);
             if (val > maxVal) maxVal = val;
         }
 
-        // DYNAMIC BOOST: Listen extra hard for G (7) and C (0)
         let threshold = (i === 7 || i === 0) ? -65 : -56; 
-        
         if (maxVal > threshold) {
             currentActive.push(i);
         }
@@ -74,13 +70,12 @@ function update() {
         
         document.getElementById('chord-name').innerText = `${NOTES[root]} ${chordType}`;
         
+        // HARMONY CALCULATION
         let score = calculateHarmony(currentActive);
         document.getElementById('meter-fill').style.width = score + '%';
 
-        // Screen freeze (0.2s)
         setTimeout(() => { isLocked = true; }, 200); 
 
-        // Button Green (2s)
         setTimeout(() => {
             if (isAnalyzing) {
                 startBtn.innerText = "CAPTURED";
@@ -94,13 +89,37 @@ function update() {
 
 function calculateHarmony(idx) {
     if (idx.length < 2) return 100;
-    let penalty = 0;
+    
+    let totalScore = 0;
+    let comparisons = 0;
+
     for (let i = 0; i < idx.length; i++) {
         for (let j = i + 1; j < idx.length; j++) {
             let diff = Math.abs(idx[i] - idx[j]) % 12;
-            if (diff === 1 || diff === 11) penalty += 50;
-            if (diff === 6) penalty += 30;
+            let pairScore = 50; // Start in the middle for each pair
+
+            // Perfect Harmony (Major 3rd, Perfect 4th, Perfect 5th, Major 6th)
+            if (diff === 7 || diff === 5 || diff === 4 || diff === 9) {
+                pairScore = 100; 
+            } 
+            // Good Harmony (Minor 3rd, Minor 6th)
+            else if (diff === 3 || diff === 8) {
+                pairScore = 85;
+            }
+            // Dissonance (Minor 2nd, Major 7th, Tritone)
+            else if (diff === 1 || diff === 11 || diff === 6) {
+                pairScore = 10;
+            }
+            // Mild Dissonance (Major 2nd, Minor 7th)
+            else if (diff === 2 || diff === 10) {
+                pairScore = 40;
+            }
+
+            totalScore += pairScore;
+            comparisons++;
         }
     }
-    return Math.max(0, Math.min(100, 100 - penalty));
+
+    // Return the average score of all note pairings
+    return Math.round(totalScore / comparisons);
 }
