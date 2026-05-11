@@ -22,7 +22,7 @@ startBtn.onclick = async () => {
         source = audioCtx.createMediaStreamSource(stream);
         analyzer = audioCtx.createAnalyser();
         analyzer.fftSize = 16384; 
-        analyzer.smoothingTimeConstant = 0.3; // Smoother listening to stabilize chords
+        analyzer.smoothingTimeConstant = 0.3; 
         
         source.connect(analyzer);
         data = new Float32Array(analyzer.frequencyBinCount);
@@ -51,13 +51,13 @@ function update() {
             let freq = 440 * Math.pow(2, (i - 9 + (oct - 4) * 12) / 12);
             let bin = Math.round(freq * analyzer.fftSize / audioCtx.sampleRate);
             
-            // WIDER SEARCH: Checks 5 bins to catch out-of-tune notes
+            // Checks 5 bins to catch the note even if it's slightly off
             let val = Math.max(data[bin], data[bin-1], data[bin+1], data[bin-2], data[bin+2]);
             if (val > maxVal) maxVal = val;
         }
 
-        // DYNAMIC BOOST: Listen extra hard (-65) for G (7)
-        let threshold = (i === 7) ? -65 : -56; 
+        // DYNAMIC BOOST: Listen extra hard for G (7) and C (0)
+        let threshold = (i === 7 || i === 0) ? -65 : -56; 
         
         if (maxVal > threshold) {
             currentActive.push(i);
@@ -77,10 +77,10 @@ function update() {
         let score = calculateHarmony(currentActive);
         document.getElementById('meter-fill').style.width = score + '%';
 
-        // Screen locks after 0.2s
+        // Screen freeze (0.2s)
         setTimeout(() => { isLocked = true; }, 200); 
 
-        // Button turns Green after 2s
+        // Button Green (2s)
         setTimeout(() => {
             if (isAnalyzing) {
                 startBtn.innerText = "CAPTURED";
