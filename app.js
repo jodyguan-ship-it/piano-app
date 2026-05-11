@@ -70,9 +70,15 @@ function update() {
         
         document.getElementById('chord-name').innerText = `${NOTES[root]} ${chordType}`;
         
-        // HARMONY CALCULATION
+        // 1. UPDATE THE METER BAR
         let score = calculateHarmony(currentActive);
         document.getElementById('meter-fill').style.width = score + '%';
+
+        // 2. UPDATE THE TEXT WORDS (THE NEW CHANGE)
+        const harmonyText = document.getElementById('harmony-text');
+        if (harmonyText) {
+            harmonyText.innerText = 'Harmony Score: ' + score + '%';
+        }
 
         setTimeout(() => { isLocked = true; }, 200); 
 
@@ -96,21 +102,17 @@ function calculateHarmony(idx) {
     for (let i = 0; i < idx.length; i++) {
         for (let j = i + 1; j < idx.length; j++) {
             let diff = Math.abs(idx[i] - idx[j]) % 12;
-            let pairScore = 50; // Start in the middle for each pair
+            let pairScore = 50; 
 
-            // Perfect Harmony (Major 3rd, Perfect 4th, Perfect 5th, Major 6th)
             if (diff === 7 || diff === 5 || diff === 4 || diff === 9) {
                 pairScore = 100; 
             } 
-            // Good Harmony (Minor 3rd, Minor 6th)
             else if (diff === 3 || diff === 8) {
                 pairScore = 85;
             }
-            // Dissonance (Minor 2nd, Major 7th, Tritone)
             else if (diff === 1 || diff === 11 || diff === 6) {
                 pairScore = 10;
             }
-            // Mild Dissonance (Major 2nd, Minor 7th)
             else if (diff === 2 || diff === 10) {
                 pairScore = 40;
             }
@@ -119,7 +121,5 @@ function calculateHarmony(idx) {
             comparisons++;
         }
     }
-
-    // Return the average score of all note pairings
     return Math.round(totalScore / comparisons);
 }
